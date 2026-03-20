@@ -1,0 +1,113 @@
+# Getting Started with Music Hub
+
+This guide matches the current beta rollout as of March 20, 2026.
+
+## Current Beta Downloads
+
+- [macOS Apple Silicon (.dmg)](https://github.com/gordo-labs/music-streaming-hub/releases/download/v0.1.1/Music.Hub-0.1.1-arm64.dmg)
+- [macOS Intel / universal (.dmg)](https://github.com/gordo-labs/music-streaming-hub/releases/download/v0.1.1/Music.Hub-0.1.1.dmg)
+- [Request iOS TestFlight access](https://docs.google.com/forms/d/e/1FAIpQLSf6CVxy2yU3rPQiVHsUYMA0pGiuM4p1VEq1fV6alAFRd4o04A/viewform?usp=dialog)
+- Windows, Linux, and Android do not have ready-made beta installers yet. Use the [build guide](/building) if you want to run them from source.
+
+## Quick Start
+
+### 1. Install the desktop hub
+
+1. Download the correct macOS `.dmg` for your machine.
+2. Drag **Music Hub** into `Applications`.
+3. Launch the app and allow it in **Privacy & Security** if macOS warns you.
+
+### 2. Add your library
+
+1. Click **Add Music Folder** on first launch.
+2. Pick one or more folders that contain your music.
+3. Wait for the initial scan to finish.
+4. Confirm the hub is healthy in the app or at `http://localhost:38472/api/info`.
+
+The packaged desktop hub serves on port `38472` by default. The source-development flow uses `38473`.
+
+### 3. Join the mobile beta
+
+The iPhone app is currently distributed through TestFlight, not the App Store.
+
+1. Submit the [TestFlight sign-up form](https://docs.google.com/forms/d/e/1FAIpQLSf6CVxy2yU3rPQiVHsUYMA0pGiuM4p1VEq1fV6alAFRd4o04A/viewform?usp=dialog).
+2. Install the app from the TestFlight invite email once your address is added.
+3. Open the desktop hub and show the **Connect** QR.
+4. Open the mobile app and scan the QR code.
+
+If you are pairing through a public Cloudflare URL or Tailscale route, arm pairing first in the desktop app. If local discovery fails, enter `YOUR_IP:38472` manually in the mobile app.
+
+## Build From Source
+
+If you need Windows, Linux, or a local dev build:
+
+```bash
+git clone https://github.com/gordo-labs/music-streaming-hub.git
+cd music-streaming-hub/desktop
+npm install
+npm run dev:all
+```
+
+The full packaging workflow for desktop, mobile, docs, and landing lives in [/building](/building).
+
+## Common Setup Tasks
+
+### Add more music folders
+
+1. Open **Settings** in the desktop app.
+2. Click **Add Music Folder**.
+3. Choose another directory.
+4. Music Hub will rescan automatically.
+
+### Import Rekordbox playlists
+
+1. In Rekordbox, export your collection as XML.
+2. In Music Hub, open **Settings**.
+3. Use the Rekordbox import flow and select the XML file.
+
+### Enable remote access
+
+- **Cloudflare Tunnel:** fastest setup, temporary public URL.
+- **Tailscale:** persistent private access between your devices.
+
+Both options live under **Settings → Remote Access** in the desktop app. Remote API reads require a bearer token after pairing, and public share pages use signed bootstrap/media sessions.
+
+## Supported Audio Formats
+
+| Format | Extension |
+| --- | --- |
+| MP3 | `.mp3` |
+| FLAC | `.flac` |
+| M4A / AAC | `.m4a` |
+| WAV | `.wav` |
+| OGG Vorbis | `.ogg` |
+| OPUS | `.opus` |
+
+## Quick Troubleshooting
+
+### Mobile cannot connect
+
+- Make sure the desktop app is running and the library DB is healthy.
+- Re-scan the latest QR instead of reusing an old remote link.
+- If the desktop returns `pairing_not_armed`, arm pairing again and reconnect.
+- If manual local connect still fails, confirm the desktop is reachable on `YOUR_IP:38472`.
+
+### Music is missing
+
+- Confirm the folder actually contains supported audio files.
+- Wait for the first scan to finish on large libraries.
+- Re-open **Settings** and confirm the folder is still listed.
+
+### The desktop app does not start
+
+- Check whether port `38472` is already in use.
+- Re-open the app from `Applications`.
+- Review the logs and then follow the [Troubleshooting Guide](/troubleshooting).
+
+## Default File Locations
+
+Current runtime paths:
+
+- Database: `~/.music-hub/music.db`
+- Config: `~/.music-hub/config.json`
+- Electron log: `~/.music-hub/electron.log`

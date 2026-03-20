@@ -1,0 +1,131 @@
+# Music Hub AI Integration Guide
+
+**For assistants, automation scripts, and local tooling**
+
+## What is stable right now
+
+Automation should target the desktop hub.
+
+Current integration primitives:
+
+- REST API for library, playback, playlists, browsing, and enrichment
+- SSE for scan progress and library events
+- explicit pair/refresh auth for remote clients
+- public share bootstrap endpoints for browser-safe consumption
+- optional AI-specific context endpoints under `/api/ai/*`
+
+## Important current constraints
+
+### 1. There is no generated `/api/docs/markdown` endpoint
+
+Use:
+
+- [API Reference for Agents](/agents/api-reference)
+- [Main API Reference](/api)
+
+### 2. Remote access is authenticated
+
+Do not assume local-network anonymity. Remote and proxied calls need:
+
+- bearer tokens from the pairing flow, or
+- `MUSIC_HUB_API_TOKEN`
+
+### 3. Some routes are local-only
+
+These must run on the desktop host itself:
+
+- pairing arm/status
+- QR generation
+- database rebuild
+
+## Recommended integration patterns
+
+### Local automation on the desktop host
+
+Best for:
+
+- diagnostics
+- rebuild/recovery
+- admin actions
+- indexing tasks
+
+Start with:
+
+```bash
+curl http://localhost:38472/api/ping
+curl http://localhost:38472/api/info
+```
+
+### Remote mobile-style automation
+
+Best for:
+
+- read-only remote clients
+- dashboards
+- personal assistant flows outside the desktop host
+
+Flow:
+
+1. arm pairing locally
+2. exchange `pairingCode` for bearer + refresh tokens
+3. refresh tokens silently
+4. call protected `/api/*` routes with `Authorization: Bearer ...`
+
+### Public browser/share automation
+
+Best for:
+
+- playlist microsites
+- read-only public embeds
+- low-trust browser flows
+
+Use only:
+
+- `/api/share/*/bootstrap`
+- `/api/share/session/heartbeat`
+
+Do not fetch protected library routes anonymously.
+
+## AI-specific routes
+
+The desktop backend also exposes AI-oriented endpoints under `/api/ai/*`.
+
+These are useful for assistant-side context snapshots and event ingestion, but they still live behind the same request trust model as the rest of `/api/*`.
+
+## Basic examples
+
+### Get a hub snapshot
+
+```bash
+curl http://localhost:38472/api/info
+```
+
+### Search with a bearer token
+
+```bash
+curl "http://localhost:38472/api/search?q=boards+of+canada&limit=10" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+### Watch live library events
+
+```bash
+curl -N http://localhost:38472/api/library/events
+```
+
+### Get playback session
+
+```bash
+curl http://localhost:38472/api/playback/session \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+## Failure modes to handle
+
+- `401`: remote auth missing or expired
+- `403`: local-only endpoint called remotely
+- `409 pairing_not_armed`: pairing QR/code expired or was never armed
+- `429`: anonymous share-session concurrency limit reached
+- `503 database_unavailable`: hub DB is faulted or incompatible
+
+Automation should read `databaseHealth` from `/api/info` before assuming the library API is usable.

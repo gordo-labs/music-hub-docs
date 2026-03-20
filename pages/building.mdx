@@ -1,0 +1,212 @@
+# Building Music Hub
+
+**Version:** v0.1.1  
+**Last Updated:** 2026-03-20
+
+This page reflects the current repo layout:
+
+- `desktop/` = Electron hub app
+- `mobile/` = Expo / React Native client
+- `docs/` = this documentation site
+- `landing/` = marketing site
+
+## Prerequisites
+
+### Desktop
+
+- Node.js 20+ (`24.x` recommended)
+- npm 9+
+- macOS for the official DMG build flow
+- Xcode Command Line Tools on macOS
+
+### Mobile
+
+- Node.js 18+
+- Xcode for iOS builds
+- Expo / EAS access for TestFlight uploads
+
+## Desktop
+
+### Development
+
+```bash
+cd desktop
+npm install
+npm run dev:all
+```
+
+This starts:
+
+- the desktop API on `http://localhost:38473`
+- the Vite UI in development
+- the Electron shell
+
+### Verification
+
+```bash
+cd desktop
+npm run verify
+```
+
+`npm run verify` now handles:
+
+- protocol build
+- bundled binary fetch/copy
+- TypeScript checks
+- UI typecheck
+- packaged-binary verification prerequisites
+
+### Beta packaging
+
+```bash
+cd desktop
+npm run beta:mac
+```
+
+The beta packaging flow:
+
+1. clears the previous `release/` folder
+2. runs `npm run verify`
+3. builds the Electron app
+4. cleans stale Vite UI output before packaging
+5. stages target-specific helper binaries per macOS architecture
+6. packages macOS artifacts for both `arm64` and `x64`
+7. verifies the packaged app still contains the bundled binaries
+
+Expected artifacts land in `desktop/release/`, including:
+
+- `Music Hub-<version>-arm64.dmg`
+- `Music Hub-<version>.dmg`
+- matching macOS `.zip` archives
+
+### GitHub release + landing sync
+
+After `npm run beta:mac` produces the current local artifacts, run the current release-update pipe with one command:
+
+```bash
+cd desktop
+npm run release:landing -- --tag v0.1.1
+```
+
+For now, this pipeline only handles GitHub release + landing sync: it publishes the GitHub release tag if needed, uploads the local macOS artifacts from `desktop/release/`, updates the landing download/TestFlight links, regenerates the public desktop update manifest, runs `landing` lint + build, and pushes the landing repo to `main`.
+
+It does **not** yet handle native auto-update feeds, App Store/TestFlight shipping, or any non-landing distribution channel.
+
+Useful flags:
+
+- `--repo gordo-labs/music-streaming-hub`
+- `--testflight-form https://docs.google.com/forms/...`
+- `--skip-landing-push`
+
+### Per-architecture builds
+
+```bash
+cd desktop
+npm run build:mac:arm64
+npm run build:mac:x64
+```
+
+Use these when you only need one macOS target.
+
+### Windows and Linux
+
+```bash
+cd desktop
+npm run build:win
+npm run build:linux
+```
+
+These commands still exist for source builders, but the current public beta is focused on macOS DMGs.
+
+## Mobile
+
+### Development
+
+```bash
+cd mobile
+npm install
+npm run verify
+npm start
+```
+
+Important: playback does **not** work in Expo Go. Use a native development build or TestFlight.
+
+### Local iOS development build
+
+```bash
+cd mobile
+npm run ios
+```
+
+### TestFlight build
+
+```bash
+cd mobile
+npm run beta:ios
+```
+
+`npm run beta:ios` is the current EAS beta build command.
+
+If you are doing the full owner-run local ship flow, use:
+
+```bash
+cd mobile
+npm run build:final
+```
+
+If you need to submit manually afterwards:
+
+```bash
+cd mobile
+eas submit --platform ios --latest
+```
+
+Current mobile metadata:
+
+- App version: `0.1.1`
+- iOS build number: `2`
+- Bundle identifier: `app.musichub.mobile`
+
+### Android
+
+Android is not part of the current public beta rollout. Source builds still use the Expo production profile:
+
+```bash
+cd mobile
+eas build --platform android --profile production
+```
+
+## Docs and Landing
+
+### Landing
+
+```bash
+cd landing
+npm install
+npm run build
+```
+
+### Docs
+
+```bash
+cd docs
+npm install
+npm run build
+```
+
+The docs package is currently built directly with npm. The Vercel project should use `npm install` + `npm run build`.
+
+## Published Beta Links
+
+- [macOS Apple Silicon DMG](https://github.com/gordo-labs/music-streaming-hub/releases/download/v0.1.1/Music.Hub-0.1.1-arm64.dmg)
+- [macOS Intel / universal DMG](https://github.com/gordo-labs/music-streaming-hub/releases/download/v0.1.1/Music.Hub-0.1.1.dmg)
+- [iOS TestFlight interest form](https://docs.google.com/forms/d/e/1FAIpQLSf6CVxy2yU3rPQiVHsUYMA0pGiuM4p1VEq1fV6alAFRd4o04A/viewform?usp=dialog)
+
+## Release Checklist
+
+- Run `desktop npm run verify`
+- Run `desktop npm run beta:mac`
+- Run `desktop npm run release:landing -- --tag v0.1.1`
+- Run `mobile npm run verify`
+- Run `mobile npm run beta:ios` or `mobile npm run build:final` depending on who is shipping
+- Update the docs if the TestFlight flow or release availability changes

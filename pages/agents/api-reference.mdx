@@ -1,0 +1,136 @@
+# Music Hub API Reference for Agents
+
+Current reality for automation against the desktop hub.
+
+## Defaults
+
+- Base URL: `http://localhost:38472`
+- Dev URL: `http://localhost:38473`
+- Protocol: REST + SSE
+- Format: JSON
+
+## Trust and auth
+
+Agents must not assume LAN access is anonymous anymore.
+
+- Loopback calls are privileged local calls.
+- Remote or proxied calls require either:
+  - bearer tokens from `/api/auth/pair` and `/api/auth/refresh`, or
+  - `MUSIC_HUB_API_TOKEN`
+
+Public unauthenticated routes are intentionally small:
+
+- `GET /api/ping`
+- `GET /api/info`
+- `POST /api/auth/pair`
+- `POST /api/auth/refresh`
+- share bootstrap routes
+- share heartbeat
+
+## Fast start
+
+```bash
+curl http://localhost:38472/api/ping
+curl http://localhost:38472/api/info
+```
+
+If the hub reports a non-healthy `databaseHealth.status`, expect most `/api/*` routes to return `503 database_unavailable`.
+
+## Pairing flow
+
+### 1. Arm pairing locally
+
+```bash
+curl -X POST http://localhost:38472/api/auth/arm \
+  -H 'Content-Type: application/json' \
+  -d '{"minutes":30}'
+```
+
+### 2. Exchange pairing code for tokens
+
+```bash
+curl -X POST http://localhost:38472/api/auth/pair \
+  -H 'Content-Type: application/json' \
+  -d '{"pairingCode":"abc123","deviceId":"agent-1","deviceName":"automation"}'
+```
+
+### 3. Use the access token
+
+```bash
+curl http://localhost:38472/api/tracks?limit=5 \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+### 4. Refresh when needed
+
+```bash
+curl -X POST http://localhost:38472/api/auth/refresh \
+  -H 'Content-Type: application/json' \
+  -d '{"deviceId":"agent-1","refreshToken":"..."}'
+```
+
+## Useful read endpoints
+
+- `GET /api/library/stats`
+- `GET /api/library/filters`
+- `GET /api/tracks`
+- `GET /api/track/:id`
+- `GET /api/albums`
+- `GET /api/album/:id`
+- `GET /api/artists`
+- `GET /api/artist/:id`
+- `GET /api/search?q=...`
+- `GET /api/playlists`
+- `GET /api/playlists/:id`
+- `GET /api/playback/session`
+- `GET /api/search/history`
+- `GET /api/saved`
+- `GET /api/browse`
+
+## Useful write endpoints
+
+- `PUT /api/playback/session`
+- `POST /api/playback/history/back`
+- `POST /api/media/session`
+- `POST /api/playlists`
+- `POST /api/playlists/:id/tracks`
+- `PUT /api/tracks/:id/metadata/overrides`
+- `POST /api/tracks/:id/enrichment/apply`
+
+## Share-specific public routes
+
+These are safe public entrypoints for browser share pages and bots:
+
+- `GET /api/share/playlist/:id/bootstrap`
+- `GET /api/share/artist/:id/bootstrap`
+- `GET /api/share/album/:id/bootstrap`
+- `GET /api/share/track/:id/bootstrap`
+- `POST /api/share/session/heartbeat`
+
+The bootstrap response includes `shareSessionId` and `mediaToken`. Treat both as short-lived.
+
+## SSE feeds
+
+- `GET /api/scan/progress`
+- `GET /api/library/events`
+
+## Local-only admin routes
+
+Only call these from the desktop host itself:
+
+- `GET /api/auth/status`
+- `POST /api/auth/arm`
+- `GET /api/connect/qr`
+- `GET /api/tunnel/qr`
+- `POST /api/database/rebuild`
+
+## Recovery note
+
+If the hub is faulted, prefer:
+
+```bash
+curl http://localhost:38472/api/info
+curl -X POST http://localhost:38472/api/database/rebuild
+```
+
+Do not script destructive DB deletion as the first response. The current runtime preserves and archives faulted DBs deliberately.

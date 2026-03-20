@@ -1,0 +1,134 @@
+# Music Hub Architecture
+
+**Version:** v0.1.1  
+**Last Updated:** 2026-03-20
+
+## Overview
+
+Music Hub is a local-first music system with one desktop hub as the source of truth:
+
+- `desktop/`: Electron app plus the backend API
+- `mobile/`: Expo / React Native companion
+- `landing/`: public marketing site
+- `docs/`: this documentation site
+
+The desktop app owns scanning, metadata, database persistence, streaming, pairing, and remote/share entrypoints.
+
+## Runtime shape
+
+```text
+desktop/
+  electron/main.cjs        Electron shell + splash + app lifecycle
+  src/index.ts             Express server bootstrap
+  src/api/index.ts         Canonical API entrypoint
+  src/api/routes.ts        Main route surface
+  src/database/            Active native SQLite runtime
+  src/scanner/             Folder scanning
+  src/metadata/            Embedded tag extraction
+  src/enrichment/          Background enrichment pipeline
+  src/streaming/           Direct + HLS playback
+  src/auth/                Pairing + refresh-token flow
+  src/media-access/        Signed media/share sessions
+  src/tunnel/              Cloudflare + embedded Tailscale
+  ui-src/                  React renderer
+```
+
+The historical `desktop/src/core/database` tree still exists as an archived sql.js prototype, but the active runtime uses `desktop/src/database`.
+
+## Core data flow
+
+### Scan and ingest
+
+1. User adds one or more folders.
+2. Scanner walks the filesystem and compares it against the indexed set.
+3. Metadata extraction reads embedded tags and artwork.
+4. The desktop DB stores tracks, artists, albums, playlists, saved state, playback state, and enrichment data.
+5. The UI receives updates over SSE.
+
+### Playback
+
+1. Clients read the shared playback session from `/api/playback/session`.
+2. Local-safe formats can use direct streaming.
+3. Remote and public-share playback use HLS or signed media routes.
+4. Playback session, queue, and history are persisted in the hub DB so desktop and mobile can restore state.
+
+### Sharing
+
+1. A share page loads only public bootstrap data.
+2. Bootstrap returns a short-lived `shareSessionId` and `mediaToken`.
+3. The share client renews the session with `/api/share/session/heartbeat`.
+4. Audio/artwork requests are authorized through the issued media token.
+
+## Networking and trust model
+
+The desktop backend now has an explicit trust boundary:
+
+- Loopback requests are treated as local admin traffic.
+- Forwarded or non-loopback requests are treated as remote.
+- Remote `/api/*` access is auth-by-default.
+
+Public exceptions are deliberately small:
+
+- `GET /api/ping`
+- `GET /api/info`
+- pair/refresh endpoints
+- share bootstrap and share heartbeat endpoints
+
+Sensitive local-only flows include:
+
+- pairing arm status
+- QR generation helpers
+- database rebuild
+
+## Pairing model
+
+Remote access is no longer anonymous.
+
+1. Desktop user arms pairing locally.
+2. QR/share config includes a one-time `pairingCode` while armed.
+3. Mobile exchanges that code for access + refresh tokens.
+4. Mobile silently refreshes access tokens and stores auth state per hub/origin.
+
+This keeps Cloudflare/Tailscale access usable without falling back to a single long-lived static secret for every client.
+
+## Storage and recovery
+
+Current desktop persistence is native SQLite via `better-sqlite3-multiple-ciphers`.
+
+Key behaviors:
+
+- DB path defaults to `~/.music-hub/music.db`
+- startup checks `user_version` and integrity
+- `databaseHealth` is surfaced through `/api/info` and `/api/settings`
+- incompatible or faulted DBs are preserved and archived instead of being silently wiped
+- local rebuild is explicit through `POST /api/database/rebuild`
+
+## Remote access
+
+Supported remote paths today:
+
+- Cloudflare quick tunnel
+- embedded Tailscale / `tsnet`
+
+The server binds to loopback by default and only broadens network exposure when LAN/remote access is explicitly enabled.
+
+## Public web surface
+
+There is no general-purpose browser control app for remote users. The public browser surface today is:
+
+- landing marketing site
+- docs site
+- standalone share pages for playlists, artists, albums, and tracks
+
+Share pages are intentionally narrow: bootstrap-only data fetch, tokenized playback, and no access to the full protected library API.
+
+## Current status
+
+What is true in the current codebase:
+
+- desktop DB runtime is native SQLite, not sql.js
+- playback/session persistence is shared between clients
+- remote auth uses pair + refresh tokens
+- public share pages use signed bootstrap/media sessions
+- degraded DB states surface explicitly and can be rebuilt locally
+- docs and landing are separate Next-based surfaces

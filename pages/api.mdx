@@ -1,0 +1,322 @@
+# Music Hub API
+
+Current desktop hub API for `v0.1.1`.
+
+## Base URLs
+
+- Packaged desktop default: `http://localhost:38472`
+- Source-development desktop: `http://localhost:38473`
+
+Most examples below use `38472`.
+
+## Request classes
+
+The backend treats requests differently depending on where they come from:
+
+- Local loopback: `localhost`, `127.0.0.1`, `::1`
+- Remote socket: LAN, Tailscale, direct IP, or other non-loopback clients
+- Proxied remote: Cloudflare or other forwarded requests
+
+## Authentication model
+
+### Public endpoints
+
+These are reachable without auth:
+
+- `GET /api/ping`
+- `GET /api/info`
+- `POST /api/auth/pair`
+- `POST /api/auth/refresh`
+- `GET /api/share/{playlist|artist|album|track}/:id/bootstrap`
+- `POST /api/share/session/heartbeat`
+
+### Local-only admin endpoints
+
+These return `403` when called remotely:
+
+- `GET /api/auth/status`
+- `POST /api/auth/arm`
+- `GET /api/connect/qr`
+- `GET /api/tunnel/qr`
+- `POST /api/database/rebuild`
+
+### Authenticated remote endpoints
+
+Remote API reads and writes require either:
+
+- a bearer access token from the pair/refresh flow, or
+- `MUSIC_HUB_API_TOKEN`
+
+If auth is missing, the server returns `401`.
+
+## Database health gate
+
+If the database is not healthy, most `/api/*` routes return:
+
+```json
+{
+  "error": "Database unavailable",
+  "code": "database_unavailable",
+  "databaseHealth": {
+    "status": "faulted"
+  }
+}
+```
+
+Health/info, auth bootstrap, and recovery routes stay available so the client can diagnose and repair the hub.
+
+## Core endpoints
+
+### `GET /api/ping`
+
+```json
+{
+  "status": "ok",
+  "timestamp": 1700000000000
+}
+```
+
+### `GET /api/info`
+
+```json
+{
+  "id": "local-hub",
+  "name": "Music Library",
+  "version": "0.1.1",
+  "stats": {
+    "trackCount": 1250,
+    "albumCount": 85,
+    "artistCount": 42,
+    "totalDuration": 324000,
+    "totalSize": 8500000000
+  },
+  "databaseHealth": {
+    "status": "healthy"
+  },
+  "uptime": 3600,
+  "features": ["streaming", "search", "artwork"]
+}
+```
+
+### `GET /api/settings`
+
+Returns folders, server/scanning config, stats, scan status, and `databaseHealth`.
+
+Notes:
+
+- Remote anonymous requests get `401`
+- `configPath` is only exposed to privileged local reads
+
+### `POST /api/database/rebuild`
+
+Local-only recovery endpoint.
+
+```json
+{
+  "success": true,
+  "scanStarted": true,
+  "databaseHealth": {
+    "status": "healthy"
+  }
+}
+```
+
+## Pairing and auth
+
+### `GET /api/auth/status`
+
+Local-only arm status:
+
+```json
+{
+  "armed": false,
+  "expiresAt": null
+}
+```
+
+### `POST /api/auth/arm`
+
+Request body:
+
+```json
+{
+  "minutes": 30
+}
+```
+
+Response:
+
+```json
+{
+  "armed": true,
+  "pairingCode": "abc123",
+  "expiresAt": 1700001800000
+}
+```
+
+### `POST /api/auth/pair`
+
+Request body:
+
+```json
+{
+  "pairingCode": "abc123",
+  "deviceId": "mobile-123",
+  "deviceName": "music-hub-mobile"
+}
+```
+
+Response:
+
+```json
+{
+  "accessToken": "...",
+  "accessExpiresAt": 1700000600000,
+  "refreshToken": "...",
+  "refreshExpiresAt": 1702592600000
+}
+```
+
+If pairing is not armed, the server returns `409` with `code: "pairing_not_armed"`.
+
+### `POST /api/auth/refresh`
+
+Request body:
+
+```json
+{
+  "deviceId": "mobile-123",
+  "refreshToken": "..."
+}
+```
+
+Response shape matches `/api/auth/pair`.
+
+## Library reads
+
+Main read endpoints:
+
+- `GET /api/library/stats`
+- `GET /api/library/filters`
+- `GET /api/tracks?limit=50&offset=0`
+- `GET /api/track/:id`
+- `GET /api/albums?limit=50`
+- `GET /api/album/:id`
+- `GET /api/album/:id/tracks`
+- `GET /api/artists?limit=50`
+- `GET /api/artist/:id`
+- `GET /api/artist/:id/tracks`
+- `GET /api/search?q=term&limit=50`
+- `GET /api/playlists`
+- `GET /api/playlists/:id`
+- `GET /api/playlists/:id/tracks`
+- `GET /api/saved`
+- `GET /api/search/history`
+- `GET /api/sources/status`
+- `GET /api/browse`
+
+Remote callers must send `Authorization: Bearer <token>` unless they are using `MUSIC_HUB_API_TOKEN`.
+
+## Playback and media
+
+### `GET /api/playback/session`
+
+Returns the shared queue/session snapshot.
+
+### `PUT /api/playback/session`
+
+Persists queue, queue index, status, current track, position, volume, and mute state.
+
+### `POST /api/playback/history/back`
+
+Steps backward through persisted play history.
+
+### `POST /api/media/session`
+
+Authenticated endpoint that returns a short-lived media token for remote `/stream`, `/hls`, and `/artwork` access.
+
+### Media endpoints
+
+- `GET /stream/:trackId`
+- `GET /hls/:trackId/index.m3u8`
+- `GET /artwork/:id`
+- `GET /artwork/track/:trackId`
+
+Remote/public playback relies on `mediaToken`.
+
+## Share bootstrap
+
+Public share pages do not fetch protected library routes directly. They bootstrap through:
+
+- `GET /api/share/playlist/:id/bootstrap`
+- `GET /api/share/artist/:id/bootstrap`
+- `GET /api/share/album/:id/bootstrap`
+- `GET /api/share/track/:id/bootstrap`
+
+Each bootstrap response includes:
+
+- entity payload
+- share-safe track payloads
+- `shareSessionId`
+- `mediaToken`
+- `mediaExpiresAt`
+
+To keep a public share session alive:
+
+```http
+POST /api/share/session/heartbeat
+```
+
+Request:
+
+```json
+{
+  "shareSessionId": "..."
+}
+```
+
+The server currently caps anonymous public share concurrency; a fourth parallel bootstrap returns `429`.
+
+## QR and connection helpers
+
+### `GET /api/connect/qr`
+
+Local-only. Returns a QR/config that can include:
+
+- local LAN endpoint
+- Tailscale endpoint if available
+- remote Cloudflare URL if enabled
+- `pairingCode` when remote pairing is armed
+
+### `GET /api/tunnel/qr`
+
+Local-only. Requires Cloudflare tunnel up and pairing armed. Returns `409 pairing_not_armed` if the public tunnel exists but remote pairing is not armed.
+
+## Real-time feeds
+
+Server-sent events:
+
+- `GET /api/scan/progress`
+- `GET /api/library/events`
+
+## Quick curl examples
+
+### Local health
+
+```bash
+curl http://localhost:38472/api/ping
+curl http://localhost:38472/api/info
+```
+
+### Pair and use a remote bearer token
+
+```bash
+curl -X POST http://localhost:38472/api/auth/pair \
+  -H 'Content-Type: application/json' \
+  -d '{"pairingCode":"abc123","deviceId":"mobile-1","deviceName":"music-hub-mobile"}'
+```
+
+```bash
+curl http://localhost:38472/api/browse \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
