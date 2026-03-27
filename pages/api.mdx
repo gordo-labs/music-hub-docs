@@ -206,7 +206,7 @@ Main read endpoints:
 - `GET /api/artists?limit=50`
 - `GET /api/artist/:id`
 - `GET /api/artist/:id/tracks`
-- `GET /api/search?q=term&limit=50`
+- `GET /api/search` (see below)
 - `GET /api/playlists`
 - `GET /api/playlists/:id`
 - `GET /api/playlists/:id/tracks`
@@ -216,6 +216,36 @@ Main read endpoints:
 - `GET /api/browse`
 
 Remote callers must send `Authorization: Bearer <token>` unless they are using `MUSIC_HUB_API_TOKEN`.
+
+### `GET /api/search`
+
+Unified library search with pagination. Returns a **single entity type** per request.
+
+**Query parameters**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `q` | string | (required) | Search string (empty returns no results) |
+| `type` | string | `tracks` | `tracks` \| `albums` \| `artists` |
+| `limit` | number | `50` | Page size (max `100`) |
+| `offset` | number | `0` | SQL offset for the next page |
+
+**Tracks** match on title, artist, album, effective genres, and tags. **Albums** match grouped rows on album title, album artist, or year. **Artists** match on artist name.
+
+**Response**
+
+```json
+{
+  "results": [],
+  "query": "example",
+  "type": "tracks",
+  "offset": 0,
+  "limit": 50,
+  "hasMore": false
+}
+```
+
+`hasMore` indicates whether another page exists; the server does not return a full total row count.
 
 ## Playback and media
 

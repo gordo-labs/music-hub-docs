@@ -1,6 +1,8 @@
 # Music Hub Docs
 
-Nextra-powered documentation site for Music Hub. Source repo: [`gordo-labs/music-hub-docs`](https://github.com/gordo-labs/music-hub-docs). Deploy with Vercel (root = this repo, `npm run build`).
+Nextra-powered documentation site for Music Hub.
+
+**Canonical repo:** [github.com/gordo-labs/music-hub-docs](https://github.com/gordo-labs/music-hub-docs) — edit there (or sync changes back with a PR). This `docs/` tree in the workspace is a working copy for local edits and Vercel; keep it aligned with `music-hub-docs` on GitHub.
 
 ## Tech Stack
 
@@ -13,8 +15,7 @@ Nextra-powered documentation site for Music Hub. Source repo: [`gordo-labs/music
 ## Development
 
 ```bash
-git clone https://github.com/gordo-labs/music-hub-docs.git
-cd music-hub-docs
+cd docs
 npm install
 npm run dev
 ```
@@ -24,6 +25,7 @@ Visit `http://localhost:3001`.
 ## Build
 
 ```bash
+cd docs
 npm run build
 ```
 
@@ -61,7 +63,8 @@ docs/
 - `pages/index.mdx` for beta availability
 - `pages/getting-started.mdx` for the live install/TestFlight flow
 - `pages/building.mdx` for actual repo commands
-- `theme.config.tsx` for GitHub links (`music-hub-docs` + desktop repo)
+- `pages/api.mdx` for hub API contract (auth, `/api/search` pagination, etc.)
+- `theme.config.tsx` for GitHub/docs repo links
 
 ## Navigation
 
