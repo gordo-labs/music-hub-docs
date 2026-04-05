@@ -5,7 +5,7 @@ Current desktop hub API for `v0.1.1`.
 ## Base URLs
 
 - Packaged desktop default: `http://localhost:38472`
-- Source-development desktop: `http://localhost:38473`
+- Source-development desktop: `http://localhost:38472`
 
 Most examples below use `38472`.
 
@@ -48,6 +48,11 @@ Remote API reads and writes require either:
 - `MUSIC_HUB_API_TOKEN`
 
 If auth is missing, the server returns `401`.
+
+Important scope rule:
+
+- `publicRemoteScope = standalone_only` still limits the anonymous public web/share surface
+- a valid paired-device bearer token still keeps access to the private mobile API/media surface, including search, browse, playback session, and media-session issuance
 
 ## Database health gate
 
@@ -287,9 +292,18 @@ Each bootstrap response includes:
 
 - entity payload
 - share-safe track payloads
+- `hubName`
 - `shareSessionId`
 - `mediaToken`
 - `mediaExpiresAt`
+
+Bootstrap also accepts an optional resume header:
+
+```http
+X-Music-Hub-Share-Session: <shareSessionId>
+```
+
+When the same browser tab reloads the same shared page, the client can send that header to reuse the existing interactive session instead of consuming another slot. If the session is expired, missing, or belongs to a different shared resource, the server silently creates a fresh session instead.
 
 To keep a public share session alive:
 
@@ -305,7 +319,7 @@ Request:
 }
 ```
 
-The server currently caps anonymous public share concurrency; a fourth parallel bootstrap returns `429`.
+The server caps interactive public share concurrency per shared page; a fourth parallel interactive bootstrap returns `429`. Preview bots/crawlers are tracked separately and do not consume that human-facing limit.
 
 ## QR and connection helpers
 
@@ -317,6 +331,8 @@ Local-only. Returns a QR/config that can include:
 - Tailscale endpoint if available
 - remote Cloudflare URL if enabled
 - `pairingCode` when remote pairing is armed
+- `shareLink` (`musichub://connect?...`) for direct mobile handoff
+- `expiresAt` so desktop can show the armed pairing countdown
 
 ### `GET /api/tunnel/qr`
 
@@ -348,5 +364,10 @@ curl -X POST http://localhost:38472/api/auth/pair \
 
 ```bash
 curl http://localhost:38472/api/browse \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+```bash
+curl -X POST http://localhost:38472/api/media/session \
   -H "Authorization: Bearer $ACCESS_TOKEN"
 ```

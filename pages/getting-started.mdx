@@ -1,6 +1,6 @@
 # Getting Started with Music Hub
 
-This guide matches the current beta rollout as of March 20, 2026.
+This guide matches the current beta rollout as of March 27, 2026.
 
 ## Current Beta Downloads
 
@@ -24,7 +24,7 @@ This guide matches the current beta rollout as of March 20, 2026.
 3. Wait for the initial scan to finish.
 4. Confirm the hub is healthy in the app or at `http://localhost:38472/api/info`.
 
-The packaged desktop hub serves on port `38472` by default. The source-development flow uses `38473`.
+The packaged desktop hub serves on port `38472` by default. The source-development flow also uses `38472`, so dev and packaged QR/connect flows point at the same backend.
 
 ### 3. Join the mobile beta
 
@@ -35,7 +35,16 @@ The iPhone app is currently distributed through TestFlight, not the App Store.
 3. Open the desktop hub and show the **Connect** QR.
 4. Open the mobile app and scan the QR code.
 
-If you are pairing through a public Cloudflare URL or Tailscale route, arm pairing first in the desktop app. If local discovery fails, enter `YOUR_IP:38472` manually in the mobile app.
+The safest default is still Wi-Fi-first pairing: pair once on the same Wi-Fi, then let the phone fall back to Tailscale or the public remote later if Wi-Fi drops.
+
+If you are pairing through a public Cloudflare URL or Tailscale route for the first time, arm pairing first in the desktop app. The desktop pairing screen now shows:
+
+- a QR code
+- a mobile deep link
+- a countdown / expiry time
+- a relaunch action for a fresh pairing window
+
+If local discovery fails, enter `YOUR_IP:38472` manually in the mobile app.
 
 ## Build From Source
 
@@ -72,6 +81,11 @@ The full packaging workflow for desktop, mobile, docs, and landing lives in [/bu
 
 Both options live under **Settings → Remote Access** in the desktop app. Remote API reads require a bearer token after pairing, and public share pages use signed bootstrap/media sessions.
 
+Important scope rule:
+
+- `Shared pages only` limits the public web/share surface
+- it does **not** remove private access from a phone that is already paired
+
 ## Supported Audio Formats
 
 | Format | Extension |
@@ -90,6 +104,7 @@ Both options live under **Settings → Remote Access** in the desktop app. Remot
 - Make sure the desktop app is running and the library DB is healthy.
 - Re-scan the latest QR instead of reusing an old remote link.
 - If the desktop returns `pairing_not_armed`, arm pairing again and reconnect.
+- If the phone was already paired and Wi-Fi drops, it should keep working through the remote fallback without a new pairing.
 - If manual local connect still fails, confirm the desktop is reachable on `YOUR_IP:38472`.
 
 ### Music is missing
