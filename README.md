@@ -46,6 +46,9 @@ docs/
 │   ├── _meta.json               # Navigation structure
 │   ├── index.mdx                # Home page
 │   ├── getting-started.mdx      # Getting Started guide
+│   ├── features.mdx             # Product surfaces and share standalone UX
+│   ├── pairing-and-remote.mdx   # Pairing, remote scope, public root vs /share
+│   ├── faq.mdx                  # FAQ
 │   ├── architecture.mdx         # Architecture docs
 │   ├── building.mdx             # Build instructions
 │   ├── troubleshooting.mdx      # Troubleshooting
@@ -63,6 +66,7 @@ docs/
 - `pages/index.mdx` for beta availability
 - `pages/getting-started.mdx` for the live install/TestFlight flow
 - `pages/building.mdx` for actual repo commands
+- `pages/features.mdx` and `pages/pairing-and-remote.mdx` for share pages and public-scope behavior
 - `pages/api.mdx` for hub API contract (auth, `/api/search` pagination, etc.)
 - `theme.config.tsx` for GitHub/docs repo links
 

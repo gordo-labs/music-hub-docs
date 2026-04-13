@@ -1,7 +1,7 @@
 # Building Music Hub
 
 **Version:** v0.1.1  
-**Last Updated:** 2026-03-20
+**Last Updated:** 2026-04-13
 
 This page reflects the current repo layout:
 
@@ -37,9 +37,15 @@ npm run dev:all
 
 This starts:
 
-- the desktop API on `http://localhost:38473`
+- the desktop API on `http://localhost:38472`
 - the Vite UI in development
-- the Electron shell
+
+If you want the actual Electron shell too, run in another terminal:
+
+```bash
+cd desktop
+npm run dev:app
+```
 
 ### Verification
 
@@ -88,15 +94,54 @@ cd desktop
 npm run release:landing -- --tag v0.1.1
 ```
 
-For now, this pipeline only handles GitHub release + landing sync: it publishes the GitHub release tag if needed, uploads the local macOS artifacts from `desktop/release/`, updates the landing download/TestFlight links, regenerates the public desktop update manifest, runs `landing` lint + build, and pushes the landing repo to `main`.
+For now, this pipeline only handles GitHub release + landing sync: it publishes the GitHub release tag if needed, uploads the local macOS artifacts from `desktop/release/`, writes the current GitHub DMG URLs into `landing/.env.production.local`, regenerates the public desktop update manifest, and runs `landing` lint + build.
 
-It does **not** yet handle native auto-update feeds, App Store/TestFlight shipping, or any non-landing distribution channel.
+It does **not** edit landing page/support source files, push landing commits, update Vercel env vars, deploy Vercel, handle native auto-update feeds, publish App Store/TestFlight builds, or manage any non-landing distribution channel. The current paid-download handoff remains Vercel + Stripe; this script refreshes the GitHub Release assets behind those secure download URLs.
+
+Because `gordo-labs/music-streaming-hub` is private, the Vercel download route also needs a server-only `GITHUB_RELEASE_DOWNLOAD_TOKEN` with read access to the release assets. The script does not create or push that token; configure it in Vercel before using the post-payment download flow.
 
 Useful flags:
 
 - `--repo gordo-labs/music-streaming-hub`
-- `--testflight-form https://docs.google.com/forms/...`
-- `--skip-landing-push`
+- `--no-write-landing-env`
+- `--no-landing-verify`
+
+### Licensing, recovery, and email
+
+The current launch flow does more than hand out DMGs. It also needs to create buyer records, license records, and recovery links for email resend / re-download use cases.
+
+For the launch checkout and entitlement layer, configure these landing-side env vars:
+
+```bash
+NEXT_PUBLIC_STRIPE_CHECKOUT_URL=https://buy.stripe.com/...
+NEXT_PUBLIC_SUPPORT_EMAIL=musi-hub@gordo.design
+NEXT_PUBLIC_SUPABASE_URL=https://...
+SUPABASE_SECRET_KEY=...
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+DOWNLOAD_SIGNING_SECRET=replace-with-a-long-random-secret
+GITHUB_RELEASE_DOWNLOAD_TOKEN=github_pat_or_fine_grained_token_for_private_release_assets
+RESEND_API_KEY_SEND=...
+EMAIL_FROM=subscriptions@music-hub.gordo.design
+EXPECTED_BETA_PASS_AMOUNT_CENTS=1500
+EXPECTED_BETA_PASS_CURRENCY=usd
+DOWNLOAD_TOKEN_TTL_SECONDS=600
+STRIPE_ALLOWED_PAYMENT_LINK_IDS=plink_...
+```
+
+The Supabase publishable key is not required for this server-side-only launch flow; keep the licensing and recovery endpoints on the secret key path.
+
+Operationally, the landing should treat the Stripe payment as the trigger for:
+
+1. creating a purchase record,
+2. creating a desktop license tied to that email,
+3. creating a recovery token,
+4. emailing the buyer with the license key and recovery link,
+5. regenerating short-lived download links when the recovery portal is opened later.
+
+For internal comped seats, the launch docs assume a local `grant:license` helper exists in `landing/` so you can create the same records for a chosen email without going through Stripe. Keep that helper local/internal; it is not part of the public website.
+
+The recovery portal should be the durable entrypoint for buyers who lose the original email, while the DMG download itself stays short-lived and signed.
 
 ### Per-architecture builds
 
@@ -145,7 +190,7 @@ cd mobile
 npm run beta:ios
 ```
 
-`npm run beta:ios` is the current EAS beta build command.
+`npm run beta:ios` is still the EAS beta build command.
 
 If you are doing the full owner-run local ship flow, use:
 
@@ -153,6 +198,14 @@ If you are doing the full owner-run local ship flow, use:
 cd mobile
 npm run build:final
 ```
+
+#### Local `build:final` notes (hub owners)
+
+The script runs **fastlane** (provisioning) and **EAS local iOS build** on your machine. Typical pitfalls:
+
+- **App Store Connect API key (`.p8`):** the Fastlane lane expects the key under `~/clawd/settings/apple/AuthKey_<KeyID>.p8` (resolved from your user home). If your layout differs, adjust `mobile/fastlane/Fastfile` or mirror that path.
+- **Git / EAS:** EAS requires a git repo in `mobile/`. If Git prints **dubious ownership** (folder owned by another UID), either fix ownership (`chown`) or register the repo: `git config --global --add safe.directory "/absolute/path/to/mobile"`. The `mobile` scripts also try to register `safe.directory` automatically before calling EAS.
+- **Apple Program License Agreement:** if `fastlane provision` fails with a PLA message, the **Account Holder** must accept the latest agreement in App Store Connect before profiles can refresh; the ship script may still continue using an **existing** valid profile when it detects that case.
 
 If you need to submit manually afterwards:
 
@@ -196,17 +249,27 @@ npm run build
 
 The docs package is currently built directly with npm. The Vercel project should use `npm install` + `npm run build`.
 
-## Published Beta Links
+## Public Access vs Source Builds
 
-- [macOS Apple Silicon DMG](https://github.com/gordo-labs/music-streaming-hub/releases/download/v0.1.1/Music.Hub-0.1.1-arm64.dmg)
-- [macOS Intel / universal DMG](https://github.com/gordo-labs/music-streaming-hub/releases/download/v0.1.1/Music.Hub-0.1.1.dmg)
-- [iOS TestFlight interest form](https://docs.google.com/forms/d/e/1FAIpQLSf6CVxy2yU3rPQiVHsUYMA0pGiuM4p1VEq1fV6alAFRd4o04A/viewform?usp=dialog)
+Current public beta access lives on:
+
+- [music-hub.gordo.design](https://music-hub.gordo.design)
+
+Use the source-build flow on this page when you are:
+
+- contributing
+- testing unsupported platforms
+- debugging local runtime behavior
+- packaging your own builds
 
 ## Release Checklist
 
 - Run `desktop npm run verify`
 - Run `desktop npm run beta:mac`
 - Run `desktop npm run release:landing -- --tag v0.1.1`
+- Confirm the landing Vercel project has `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `DOWNLOAD_SIGNING_SECRET`, `RESEND_API_KEY_SEND`, `EMAIL_FROM`, and `GITHUB_RELEASE_DOWNLOAD_TOKEN`
+- Verify the Stripe Payment Link redirects to `/checkout/success?session_id={CHECKOUT_SESSION_ID}`
+- Verify the recovery portal regenerates short-lived DMG links
 - Run `mobile npm run verify`
 - Run `mobile npm run beta:ios` or `mobile npm run build:final` depending on who is shipping
 - Update the docs if the TestFlight flow or release availability changes

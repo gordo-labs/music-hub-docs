@@ -1,0 +1,109 @@
+# Features
+
+This page describes the current product surfaces and what each one is responsible for.
+
+## Desktop Hub
+
+The desktop app is the source of truth for the product.
+
+### Library and ingest
+
+- add one or more local music folders
+- scan and index tracks, artists, albums, and artwork
+- keep the library database up to date as folders change
+
+### Library management
+
+- browse tracks, albums, artists, playlists, saved items, and folders
+- upload playlist cover images
+- keep a shared playback session/history for desktop and mobile
+
+### Playlist workflows
+
+- import Rekordbox XML
+- import M3U / M3U8 / XSPF playlists
+- import Traktor NML
+- import Apple Music / iTunes XML
+- import Serato local crates and smart crates
+- review inferred folder roots before exposing new trees in `Folders`
+- detect missing playlist files and relocate them explicitly
+
+### Playback
+
+- direct streaming where the format/path allows it
+- HLS when a more compatible or remote-safe path is needed
+- shared playback session and queue across surfaces
+
+### Pairing, remote, and sharing
+
+- QR pairing and mobile deep links
+- Cloudflare remote access
+- embedded Tailscale remote access
+- public share pages for tracks, albums, artists, and playlists
+
+#### Public share pages (standalone)
+
+Share links open a **standalone** web UI (not the full desktop shell in the browser):
+
+- **Paths:** `/share/playlist/:id`, `/share/album/:id`, `/share/artist/:id`, `/share/track/:id`
+- **Header:** “Music Hub” on the left; on the right, a **hub pill** shows the hub display name from the share bootstrap API.
+- **Hub pill:** clicking it opens a short explainer whose **copy and CTAs match** the static splash the hub serves at its **public root URL** when **Public web access** is set to **Shared pages only** (`standalone_only`): it tells visitors to ask whoever runs that hub for a share link, then **Want to host your own library?** → **Get Music Hub** → [music-hub.gordo.design](https://music-hub.gordo.design/), plus a line for docs/downloads/setup on the same site.
+- The pill is shown **only in the header** on these pages (not repeated in the page body).
+
+See also [Pairing & Remote](/pairing-and-remote#public-hub-root-vs-share-links) for how the public **base URL** behaves vs `/share/...`.
+
+### Licensing
+
+- remote access is gated by a desktop license
+- LAN / Wi-Fi usage remains available without remote entitlement
+- desktop verifies signed entitlements before keeping remote unlocked
+
+## iPhone Companion
+
+The iPhone app is the paired client for the desktop hub.
+
+### Browse and play
+
+- home sections
+- tracks
+- albums
+- artists
+- playlists
+- files/folders view
+- now playing and queue
+
+### Connect
+
+- scan QR from desktop
+- manual connect when needed
+- keep auth refreshed per saved hub
+
+### Route switching
+
+- prefer local Wi-Fi when available
+- fall back to Tailscale or public remote when available
+- surface `license required for remote` as a product message instead of a generic network failure
+
+## Landing and Buyer Flow
+
+The landing site is part of the product because it currently owns beta access and recovery.
+
+- founding beta access
+- post-purchase handoff
+- recovery portal for re-downloads
+- license issuance and onboarding email
+
+## What Is Public Today
+
+- Mac desktop hub beta
+- iPhone companion beta
+- Wi-Fi playback
+- remote playback with a valid desktop entitlement
+- public share pages
+
+## What Is Not Public Yet
+
+- ready-made Windows desktop installer
+- ready-made Linux desktop installer
+- public Android app distribution
+- full multi-hub / shared-hub product surface

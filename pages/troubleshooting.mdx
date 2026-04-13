@@ -2,6 +2,15 @@
 
 This page reflects the current desktop/mobile architecture in `v0.1.1`.
 
+## Before You Debug
+
+Start by deciding which surface is actually failing:
+
+- desktop hub
+- iPhone companion
+- remote route
+- buyer/download/license flow
+
 ## Connectivity
 
 ### Mobile or remote client gets `401 Unauthorized`
@@ -13,6 +22,16 @@ What to do:
 1. Re-open the latest desktop QR instead of reusing an old remote URL.
 2. If the desktop shows `pairing_not_armed`, arm pairing again before reconnecting.
 3. On mobile, disconnect and reconnect so the app can pair again or refresh auth state.
+
+### Remote playback fails with a license-related message
+
+This is different from a normal network error.
+
+What to check:
+
+1. The desktop hub has an active license state for remote access.
+2. The hub can still validate or reuse its signed entitlement state.
+3. You are not testing remote while expecting LAN-only behavior.
 
 ### QR returns `409 pairing_not_armed`
 
@@ -114,6 +133,22 @@ What to check:
 
 ## Remote access
 
+### `Web session bootstrap failed (403)` in the browser (full hub, not `/share/`)
+
+That message comes from the desktop UI calling `POST /api/auth/web-session` before protected API calls when the page is loaded on a **non-localhost** hostname (for example your Cloudflare URL).
+
+Checklist:
+
+1. **`allowRemoteOpenAccess` in config** — After toggling **Public remote URI** in Advanced, confirm `~/.music-hub/config.json` has `"allowRemoteOpenAccess": true`. If it stays `false`, the setting did not save (wrong hub process, or the request failed).
+
+2. **License / remote entitlement** — If the hub is not `remoteLicensed`, the server returns `403` with `code: license_required_for_remote` (not `browser_access_disabled`). Fix license/validation first.
+
+3. **Same machine behind the tunnel** — The browser must hit the same desktop instance that you configured.
+
+4. **Proxy headers** — The hub classifies traffic using forwarded client IP headers (`cf-connecting-ip`, `x-forwarded-for`, etc.). If your edge strips them, anonymous browser access rules may not apply as expected.
+
+**Public `/share/...` pages** use a separate path: they should load shared content without opening the full hub and **without** requiring **Public remote URI** (see share bootstrap in the API docs). If only share pages fail, check the share bootstrap response and license, not only `web-session`.
+
 ### Cloudflare/Tailscale route exists but app still cannot browse library
 
 Remote networking alone is not enough anymore. The client still needs auth.
@@ -144,6 +179,20 @@ If you front the app with your own proxy:
 1. Pass `/share/*` and static assets through without rewriting them into API requests.
 2. Do not force unknown origins to throw inside API CORS handling.
 
+## Mobile iOS shipping
+
+### EAS prompts to run `git init` even though `mobile/` is already a git repo
+
+This often happens when Git refuses the repository with **dubious ownership** (the folder is owned by a different user UID than the account running the build). EAS then assumes there is no usable git metadata.
+
+What to do:
+
+1. Prefer fixing ownership: `sudo chown -R "$(whoami)" /path/to/mobile` (adjust path).
+2. Or allow the path explicitly: `git config --global --add safe.directory "/absolute/path/to/mobile"`.
+3. Re-run `npm run build:final` from `mobile/`.
+
+The `mobile` build scripts also attempt to register `safe.directory` automatically before invoking EAS when they detect this pattern.
+
 ## Packaging and startup
 
 ### macOS app is blocked on first open
@@ -167,3 +216,13 @@ If the backend is healthy but the UI is not loading, also test:
 curl http://localhost:38472/api/ping
 curl http://localhost:38472/api/settings
 ```
+
+## Buyer / Recovery Flow
+
+### I paid, but I lost the original email
+
+Use the current recovery path exposed from the landing flow instead of expecting a permanent raw DMG URL.
+
+### The download link expired
+
+That is expected for the current secure download flow. Use the recovery flow to generate a fresh short-lived download link.

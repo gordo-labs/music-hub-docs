@@ -1,0 +1,117 @@
+# Pairing & Remote
+
+This page explains how connection, pairing, and remote access fit together in the current product.
+
+## The Basic Model
+
+Music Hub works best when you think about it this way:
+
+- the **desktop app** is the hub
+- the **phone app** is the paired client
+- pairing creates a private relationship between that phone and that hub
+
+## First Pairing
+
+The safest default is still:
+
+1. open the desktop hub on your Mac
+2. arm pairing if needed
+3. scan the current QR code from the iPhone app
+4. complete the first connection on the same Wi-Fi
+
+During an active pairing window, the desktop can expose:
+
+- a QR code
+- a mobile deep link
+- a countdown/expiry time
+- a relaunch action for a fresh pairing window
+
+## Connection Priority
+
+The phone tries to keep one hub identity and move between routes as needed.
+
+Current priority is:
+
+1. local Wi-Fi / LAN
+2. Tailscale
+3. public remote route
+
+That means one successful Wi-Fi pairing can continue working later through remote routes if the hub already exposes them.
+
+## Remote Access Options
+
+### Local Wi-Fi
+
+- fastest path
+- best default for first pairing
+- no internet dependency if both devices are on the same network
+
+### Tailscale
+
+- private remote path between your devices
+- good for stable personal remote access
+- treated as remote for licensing purposes
+
+### Public remote route
+
+- useful when a public remote path is configured on the desktop hub
+- still not anonymous private library access; the phone must already be paired/authenticated
+
+## Public Scope vs Private Mobile Access
+
+One of the most important product rules:
+
+- `Shared pages only` limits the public web/share surface
+- it does **not** remove private access from a phone that is already paired
+
+So if your phone was already paired correctly, it should still be able to browse and play through the private mobile API even when the public share scope is narrow.
+
+## Public hub root vs share links
+
+If someone opens the hub’s **public base URL** (for example your stable Cloudflare hostname) **without** a `/share/...` path, what they get depends on **Public web access** / `publicRemoteScope` on the desktop:
+
+- **Shared pages only** (`standalone_only`): the hub returns a small **HTML splash page** (not the full web app). It explains that visitors need an explicit share link to hear anything, and points people who want to host their own library to [music-hub.gordo.design](https://music-hub.gordo.design/) for downloads and setup.
+- **`/share/playlist|album|artist|track/...`** URLs still load the **interactive** standalone player for that shared item. That surface is separate from “browsing the whole hub in a browser.”
+
+The **hub pill** on standalone share pages opens an overlay that reuses the **same messaging and primary CTA** as that splash (`Get Music Hub` → the marketing/docs site).
+
+## Licensing and Remote
+
+Current product rule:
+
+- **LAN / Wi-Fi** remains available without remote entitlement
+- **remote playback** requires a valid desktop license
+
+If remote is blocked by license:
+
+- the phone should still work on Wi-Fi
+- the app should tell you remote needs a valid desktop license
+- it should not look like a random generic network failure
+
+## Common Failure Modes
+
+### `pairing_not_armed`
+
+The desktop has a route, but pairing is not currently armed.
+
+What to do:
+
+1. open the desktop app locally
+2. arm pairing again
+3. refresh the QR and rescan it
+
+### Old QR or stale route
+
+If the phone is using an old QR or stale public route:
+
+- rescan the latest desktop QR
+- confirm the hub still exposes the expected routes
+
+### Remote works, but browse/search/playback fail
+
+That usually means:
+
+- auth is stale, or
+- remote is present but the mobile private-access path is not healthy
+
+Start by reconnecting from the latest QR and checking the desktop remote state.

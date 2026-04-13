@@ -1,6 +1,9 @@
 {
   "index": "Introduction",
   "getting-started": "Getting Started",
+  "features": "Features",
+  "pairing-and-remote": "Pairing & Remote",
+  "faq": "FAQ",
   "architecture": "Architecture",
   "building": "Building from Source",
   "troubleshooting": "Troubleshooting",
