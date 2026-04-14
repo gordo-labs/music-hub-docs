@@ -183,20 +183,20 @@ cd mobile
 npm run ios
 ```
 
-### TestFlight build
-
-```bash
-cd mobile
-npm run beta:ios
-```
-
-`npm run beta:ios` is still the EAS beta build command.
-
-If you are doing the full owner-run local ship flow, use:
+### TestFlight build (recommended owner flow)
 
 ```bash
 cd mobile
 npm run build:final
+```
+
+`npm run build:final` is the canonical local/native iOS ship path and includes the Fastlane + EAS local flow.
+
+If you explicitly need the older cloud-triggered lane, you can still run:
+
+```bash
+cd mobile
+npm run beta:ios
 ```
 
 #### Local `build:final` notes (hub owners)
@@ -271,5 +271,5 @@ Use the source-build flow on this page when you are:
 - Verify the Stripe Payment Link redirects to `/checkout/success?session_id={CHECKOUT_SESSION_ID}`
 - Verify the recovery portal regenerates short-lived DMG links
 - Run `mobile npm run verify`
-- Run `mobile npm run beta:ios` or `mobile npm run build:final` depending on who is shipping
+- Run `mobile npm run build:final` for owner-run local shipping (fallback: `mobile npm run beta:ios`)
 - Update the docs if the TestFlight flow or release availability changes

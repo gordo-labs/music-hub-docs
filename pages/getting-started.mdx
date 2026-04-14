@@ -1,128 +1,114 @@
-# Getting Started with Music Hub
+# Getting Started
 
-This guide matches the current beta rollout as of March 27, 2026.
+This guide reflects the current public product.
 
-## Current Beta Downloads
+## 1. Start from the landing
 
-- [macOS Apple Silicon (.dmg)](https://github.com/gordo-labs/music-streaming-hub/releases/download/v0.1.1/Music.Hub-0.1.1-arm64.dmg)
-- [macOS Intel / universal (.dmg)](https://github.com/gordo-labs/music-streaming-hub/releases/download/v0.1.1/Music.Hub-0.1.1.dmg)
-- [Request iOS TestFlight access](https://docs.google.com/forms/d/e/1FAIpQLSf6CVxy2yU3rPQiVHsUYMA0pGiuM4p1VEq1fV6alAFRd4o04A/viewform?usp=dialog)
-- Windows, Linux, and Android do not have ready-made beta installers yet. Use the [build guide](/building) if you want to run them from source.
+Use the official product entry:
 
-## Quick Start
+- [music-hub.gordo.design](https://music-hub.gordo.design)
 
-### 1. Install the desktop hub
+If you are on Windows, Linux, or Android, use [Building from Source](/building).
 
-1. Download the correct macOS `.dmg` for your machine.
-2. Drag **Music Hub** into `Applications`.
-3. Launch the app and allow it in **Privacy & Security** if macOS warns you.
+## 2. Install the Desktop Hub
 
-### 2. Add your library
+1. Install the Mac desktop app.
+2. Move **Music Hub** into `Applications`.
+3. Open it and allow it in **Privacy & Security** if macOS warns you.
 
-1. Click **Add Music Folder** on first launch.
-2. Pick one or more folders that contain your music.
-3. Wait for the initial scan to finish.
-4. Confirm the hub is healthy in the app or at `http://localhost:38472/api/info`.
+## 3. Add Your Library
 
-The packaged desktop hub serves on port `38472` by default. The source-development flow also uses `38472`, so dev and packaged QR/connect flows point at the same backend.
+1. Choose one or more folders with music.
+2. Wait for the first scan to finish.
+3. Confirm that tracks, artists, albums, and playlists begin to populate.
 
-### 3. Join the mobile beta
+The desktop hub is the source of truth for the whole product. The phone app does not build a separate library of its own.
 
-The iPhone app is currently distributed through TestFlight, not the App Store.
+## 4. Pair Your Phone
 
-1. Submit the [TestFlight sign-up form](https://docs.google.com/forms/d/e/1FAIpQLSf6CVxy2yU3rPQiVHsUYMA0pGiuM4p1VEq1fV6alAFRd4o04A/viewform?usp=dialog).
-2. Install the app from the TestFlight invite email once your address is added.
-3. Open the desktop hub and show the **Connect** QR.
-4. Open the mobile app and scan the QR code.
+1. Open the iPhone companion app.
+2. Open the desktop pairing screen.
+3. Scan the current QR code.
+4. Complete the first pairing on the same Wi-Fi when possible.
 
-The safest default is still Wi-Fi-first pairing: pair once on the same Wi-Fi, then let the phone fall back to Tailscale or the public remote later if Wi-Fi drops.
+Current pairing screen behavior includes:
 
-If you are pairing through a public Cloudflare URL or Tailscale route for the first time, arm pairing first in the desktop app. The desktop pairing screen now shows:
+- QR code
+- mobile deep link
+- countdown / expiry
+- relaunch action for a fresh pairing window
 
-- a QR code
-- a mobile deep link
-- a countdown / expiry time
-- a relaunch action for a fresh pairing window
+For the full connection model, see [Pairing & Remote](/pairing-and-remote).
 
-If local discovery fails, enter `YOUR_IP:38472` manually in the mobile app.
+## 5. Decide How You Want to Use It
 
-## Build From Source
+### Local / Wi-Fi only
 
-If you need Windows, Linux, or a local dev build:
+This is the simplest mode:
 
-```bash
-git clone https://github.com/gordo-labs/music-streaming-hub.git
-cd music-streaming-hub/desktop
-npm install
-npm run dev:all
-```
+- desktop hub running on your Mac
+- phone on the same network
+- no remote route needed
 
-The full packaging workflow for desktop, mobile, docs, and landing lives in [/building](/building).
+### Remote access
+
+If you want playback outside your local network:
+
+- set up a remote path from the desktop hub
+- keep the phone paired
+- use a valid desktop license for remote playback
+
+Current remote paths:
+
+- Tailscale
+- public remote route from the desktop hub
 
 ## Common Setup Tasks
 
-### Add more music folders
+### Add more folders later
 
-1. Open **Settings** in the desktop app.
-2. Click **Add Music Folder**.
-3. Choose another directory.
-4. Music Hub will rescan automatically.
+Open the desktop app and add more music folders from Settings.
 
-### Import Rekordbox playlists
+### Import playlists from DJ/music tools
 
-1. In Rekordbox, export your collection as XML.
-2. In Music Hub, open **Settings**.
-3. Use the Rekordbox import flow and select the XML file.
+The desktop hub currently supports:
 
-### Enable remote access
+- Rekordbox XML
+- M3U / M3U8 / XSPF
+- Traktor NML
+- Apple Music / iTunes XML
+- Serato local crates and smart crates
 
-- **Cloudflare Tunnel:** fastest setup, temporary public URL.
-- **Tailscale:** persistent private access between your devices.
+### Share a page publicly
 
-Both options live under **Settings → Remote Access** in the desktop app. Remote API reads require a bearer token after pairing, and public share pages use signed bootstrap/media sessions.
+The public surface is currently narrow and intentional:
 
-Important scope rule:
+- tracks
+- albums
+- artists
+- playlists
 
-- `Shared pages only` limits the public web/share surface
-- it does **not** remove private access from a phone that is already paired
+## Supported Formats
 
-## Supported Audio Formats
+Current common formats include:
 
-| Format | Extension |
-| --- | --- |
-| MP3 | `.mp3` |
-| FLAC | `.flac` |
-| M4A / AAC | `.m4a` |
-| WAV | `.wav` |
-| OGG Vorbis | `.ogg` |
-| OPUS | `.opus` |
+- MP3
+- FLAC
+- M4A / AAC
+- WAV
+- OGG
+- OPUS
 
-## Quick Troubleshooting
+## Runtime Paths
 
-### Mobile cannot connect
+Current default runtime files:
 
-- Make sure the desktop app is running and the library DB is healthy.
-- Re-scan the latest QR instead of reusing an old remote link.
-- If the desktop returns `pairing_not_armed`, arm pairing again and reconnect.
-- If the phone was already paired and Wi-Fi drops, it should keep working through the remote fallback without a new pairing.
-- If manual local connect still fails, confirm the desktop is reachable on `YOUR_IP:38472`.
+- database: `~/.music-hub/music.db`
+- config: `~/.music-hub/config.json`
+- log: `~/.music-hub/electron.log`
 
-### Music is missing
+## If Something Fails
 
-- Confirm the folder actually contains supported audio files.
-- Wait for the first scan to finish on large libraries.
-- Re-open **Settings** and confirm the folder is still listed.
-
-### The desktop app does not start
-
-- Check whether port `38472` is already in use.
-- Re-open the app from `Applications`.
-- Review the logs and then follow the [Troubleshooting Guide](/troubleshooting).
-
-## Default File Locations
-
-Current runtime paths:
-
-- Database: `~/.music-hub/music.db`
-- Config: `~/.music-hub/config.json`
-- Electron log: `~/.music-hub/electron.log`
+- [Troubleshooting](/troubleshooting)
+- [Pairing & Remote](/pairing-and-remote)
+- [FAQ](/faq)
